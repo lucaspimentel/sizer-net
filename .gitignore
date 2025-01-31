@@ -1,5 +1,7 @@
-Debug/
-Release/
+.idea/
 .vs/
+.vscode/
+bin/
+obj
 *.suo
 *.user
