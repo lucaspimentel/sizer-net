@@ -29,12 +29,7 @@
   For more information, please refer to <http://unlicense.org/>
 */
 
-using System;
-using System.IO;
-using System.Drawing;
 using System.Reflection;
-using System.Windows.Forms;
-
 
 static class SizerNet
 {
