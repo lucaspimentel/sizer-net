@@ -45,109 +45,15 @@ internal static class SizerNet
     private const int OverheadEvent = 2 + 2 * 2;
     private const int OverheadProperty = 2 + 2 * 2;
     private const int OverheadCustomAttribute = 0 + 3 * 2;
-    private static Form _f;
-    private static TreeView _tv;
+
     private static int _treeViewScrollX;
     private static string _assemblyPath;
     private static long _assemblySize;
     private static string[] _dependencyDirs;
     private static string[] _ignoredDependencies;
 
-    [STAThread]
     private static void Main(string[] args)
     {
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-
-        _f = new Form();
-        _f.KeyPreview = true;
-        _f.KeyUp += (sender, e) =>
-        {
-            if (e.KeyCode == Keys.Escape) ((Form)sender).Close();
-        };
-        _f.Text = "Sizer.Net";
-        _f.Icon = Icon.ExtractAssociatedIcon(Process.GetCurrentProcess().MainModule.FileName);
-        _f.ClientSize = new Size(800, 700);
-
-        _tv = new TreeView();
-        _tv.Location = new Point(13, 13);
-        _tv.Size = new Size(_f.ClientSize.Width - 13 - 13, _f.ClientSize.Height - 13 - 23 - 13 - 13);
-        _tv.DrawMode = TreeViewDrawMode.OwnerDrawText;
-        _tv.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        _tv.Resize += (sender, e) => { _tv.Invalidate(); };
-        _tv.DrawNode += OnTreeDrawNode;
-        _f.Controls.Add(_tv);
-
-        var btnLoad = new Button();
-        btnLoad.Location = new Point(13, _f.ClientSize.Height - 13 - 23);
-        btnLoad.Size = new Size(500 - 13, 23);
-        btnLoad.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        btnLoad.Text = "Load Assembly";
-        btnLoad.Click += (sender, e) => { BrowseAssembly(); };
-        _f.Controls.Add(btnLoad);
-
-        var btnClose = new Button();
-        btnClose.Location = new Point(513, _f.ClientSize.Height - 13 - 23);
-        btnClose.Size = new Size(_f.ClientSize.Width - 513 - 13, 23);
-        btnClose.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-        btnClose.Text = "Close";
-        btnClose.Click += (sender, e) => { _f.Close(); };
-        _f.Controls.Add(btnClose);
-
-        if (args.Length > 0)
-        {
-            if (new FileInfo(args[0]).Exists == false)
-            {
-                MessageBox.Show("Assembly not found: " + args[0], "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                return;
-            }
-
-            _f.Shown += (sender, e) => { LoadAssembly(args[0], true); };
-        }
-        else
-        {
-            _f.Shown += (sender, e) => { BrowseAssembly(true); };
-        }
-
-        Application.Run(_f);
-    }
-
-    private static void BrowseAssembly(bool initialLoad = false)
-    {
-        var ofd = new OpenFileDialog();
-        ofd.ValidateNames = ofd.CheckFileExists = ofd.CheckPathExists = true;
-        ofd.Filter = ".Net Assemblies (*.exe, *.dll)|*.exe;*.dll";
-        if (ofd.ShowDialog() != DialogResult.OK)
-        {
-            if (initialLoad) _f.Close();
-            return;
-        }
-
-        ofd.Dispose();
-        LoadAssembly(ofd.FileName, initialLoad);
-    }
-
-    private static void OnTreeDrawNode(object sender, DrawTreeNodeEventArgs e)
-    {
-        e.DrawDefault = true;
-        if (_tv.Nodes.Count == 0 || e.Bounds.Height == 0) return;
-        var pct = (float)(long)e.Node.Tag / _assemblySize;
-        int w = _tv.ClientSize.Width / 4, x = _tv.ClientSize.Width - w - 5, size = (int)(w * pct);
-        e.Graphics.FillRectangle(Brushes.White, x, e.Bounds.Top + 1, w + 1, e.Bounds.Height - 2);
-        e.Graphics.FillRectangle(Brushes.LightGray, x, e.Bounds.Top + 1, size + 1, e.Bounds.Height - 2);
-        e.Graphics.DrawRectangle(Pens.DarkGray, x, e.Bounds.Top + 1, w + 1, e.Bounds.Height - 2);
-        if (true) //ShowInKilobytes
-            e.Graphics.DrawString(((long)e.Node.Tag / 1024f).ToString("0.##") + " kb", _tv.Font, Brushes.DarkSlateGray, x, e.Bounds.Top + 1);
-        //else (ShowInBytes)
-        //  e.Graphics.DrawString(((long)e.Node.Tag).ToString() + " b", tv.Font, Brushes.DarkSlateGray, x, e.Bounds.Top + 1);
-        //else (ShowInPercent)
-        //  e.Graphics.DrawString((pct*100).ToString("0.##") + "%", tv.Font, Brushes.DarkSlateGray, x, e.Bounds.Top + 1);
-        e.Graphics.DrawLine((e.State & TreeNodeStates.Selected) != 0 ? SystemPens.Highlight : SystemPens.ControlLight, e.Bounds.Left + 5, e.Bounds.Top + e.Bounds.Height / 2, x - 5, e.Bounds.Top + e.Bounds.Height / 2);
-        if (_tv.Nodes[0].Bounds.X != _treeViewScrollX)
-        {
-            _treeViewScrollX = _tv.Nodes[0].Bounds.X;
-            _tv.Invalidate();
-        }
     }
 
     private static void LoadAssembly(string inAssemblyPath, bool initialLoad = false)
@@ -155,7 +61,6 @@ internal static class SizerNet
         _assemblyPath = inAssemblyPath;
         try
         {
-            _tv.Nodes.Clear();
             AppDomain.CurrentDomain.AssemblyResolve -= ResolveExternalAssembly;
             AppDomain.CurrentDomain.AssemblyResolve += ResolveExternalAssembly;
             _assemblyPath = new FileInfo(_assemblyPath).FullName;
@@ -167,7 +72,7 @@ internal static class SizerNet
 
             if (_assemblyPath != assembly.Location && !FileContentsMatch(_assemblyPath, assembly.Location))
             {
-                MessageBox.Show("Requested assembly:\n" + _assemblyPath + "\n\nAssembly loaded by system:\n" + assembly.Location + "\n\nA different assembly was loaded because an assembly with the same name exists in the global assembly cache.\n\nResorting to loading the assembly in 'reflection only' mode which disables dependency resolving which can make certain type evaluations impossible.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                // MessageBox.Show("Requested assembly:\n" + _assemblyPath + "\n\nAssembly loaded by system:\n" + assembly.Location + "\n\nA different assembly was loaded because an assembly with the same name exists in the global assembly cache.\n\nResorting to loading the assembly in 'reflection only' mode which disables dependency resolving which can make certain type evaluations impossible.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 assembly = Assembly.ReflectionOnlyLoadFrom(_assemblyPath);
                 isReflectionOnly = true;
             }
@@ -389,17 +294,18 @@ internal static class SizerNet
             SetNodeTag(nAssembly.Nodes.Add("Other Overhead"), _assemblySize - (long)nAssembly.Tag);
             SortByNodeByTag(nAssembly.Nodes);
             nAssembly.Expand();
-            _tv.Nodes.Add(nAssembly);
+
+            // TODO: show assembly in UI
+            // _tv.Nodes.Add(nAssembly);
 
             if (unresolvedTypes != 0)
             {
-                MessageBox.Show(unresolvedTypes + " types could not be evaluated due to missing dependency errors.\nThese are included in the 'Other Overhead' entry.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                // MessageBox.Show(unresolvedTypes + " types could not be evaluated due to missing dependency errors.\nThese are included in the 'Other Overhead' entry.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
         catch (Exception e)
         {
-            MessageBox.Show("Assembly loading error:\n\n" + e.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-            if (initialLoad) _f.Close();
+            // MessageBox.Show("Assembly loading error:\n\n" + e.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         }
     }
 
@@ -432,9 +338,7 @@ internal static class SizerNet
         catch
         {
         }
-#if DOTNET35
-        try { foreach (object ca in mi.GetCustomAttributes(false)) lenMi += Overhead_CustomAttribute; } catch { }
-#else
+
         try
         {
             foreach (var ad in mi.GetCustomAttributesData())
@@ -445,7 +349,7 @@ internal static class SizerNet
         catch
         {
         }
-#endif
+
         SetNodeTag(nMethod, lenMi);
     }
 
