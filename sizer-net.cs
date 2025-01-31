@@ -50,6 +50,20 @@ internal static class SizerNet
 
     private static void Main(string[] args)
     {
+        if (args.Length == 0)
+        {
+            Console.WriteLine("Usage: sizer-net.exe <assembly path>");
+            return;
+        }
+
+        // does file exist?
+        if (!File.Exists(args[0]))
+        {
+            Console.WriteLine("File not found: " + args[0]);
+            return;
+        }
+
+        LoadAssembly(args[0]);
     }
 
     private static void LoadAssembly(string inAssemblyPath)
