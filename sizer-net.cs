@@ -45,9 +45,6 @@ internal static class SizerNet
     private const int OverheadProperty = 2 + 2 * 2;
     private const int OverheadCustomAttribute = 0 + 3 * 2;
 
-    private static string _assemblyPath;
-    private static long _assemblySize;
-
     private static void Main(string[] args)
     {
         if (args.Length == 0)
@@ -66,21 +63,19 @@ internal static class SizerNet
         LoadAssembly(args[0]);
     }
 
-    private static void LoadAssembly(string inAssemblyPath)
+    private static void LoadAssembly(string assemblyPath)
     {
-        _assemblyPath = inAssemblyPath;
-
         try
         {
-            _assemblyPath = new FileInfo(_assemblyPath).FullName;
-            var assembly = Assembly.LoadFile(_assemblyPath);
+            assemblyPath = new FileInfo(assemblyPath).FullName;
+            var assembly = Assembly.LoadFile(assemblyPath);
             var isReflectionOnly = false;
-            _assemblySize = new FileInfo(assembly.Location).Length;
+            var assemblySize = new FileInfo(assembly.Location).Length;
 
-            if (_assemblyPath != assembly.Location && !FileContentsMatch(_assemblyPath, assembly.Location))
+            if (assemblyPath != assembly.Location && !FileContentsMatch(assemblyPath, assembly.Location))
             {
                 // MessageBox.Show("Requested assembly:\n" + _assemblyPath + "\n\nAssembly loaded by system:\n" + assembly.Location + "\n\nA different assembly was loaded because an assembly with the same name exists in the global assembly cache.\n\nResorting to loading the assembly in 'reflection only' mode which disables dependency resolving which can make certain type evaluations impossible.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                assembly = Assembly.ReflectionOnlyLoadFrom(_assemblyPath);
+                assembly = Assembly.ReflectionOnlyLoadFrom(assemblyPath);
                 isReflectionOnly = true;
             }
 
@@ -96,7 +91,7 @@ internal static class SizerNet
             // Enumerate Win32 resources
             try
             {
-                var assemblyHandle = LoadLibraryEx(_assemblyPath, IntPtr.Zero, LoadLibraryFlags.LoadLibraryAsDatafile);
+                var assemblyHandle = LoadLibraryEx(assemblyPath, IntPtr.Zero, LoadLibraryFlags.LoadLibraryAsDatafile);
 
                 if (assemblyHandle == IntPtr.Zero)
                 {
@@ -296,7 +291,7 @@ internal static class SizerNet
                 }
             }
 
-            SetNodeTag(nAssembly.Nodes.Add("Other Overhead"), _assemblySize - (long)nAssembly.Tag);
+            SetNodeTag(nAssembly.Nodes.Add("Other Overhead"), assemblySize - (long)nAssembly.Tag);
             SortByNodeByTag(nAssembly.Nodes);
             nAssembly.Expand();
 
