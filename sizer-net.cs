@@ -29,7 +29,6 @@
   For more information, please refer to <http://unlicense.org/>
 */
 
-using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -46,26 +45,20 @@ internal static class SizerNet
     private const int OverheadProperty = 2 + 2 * 2;
     private const int OverheadCustomAttribute = 0 + 3 * 2;
 
-    private static int _treeViewScrollX;
     private static string _assemblyPath;
     private static long _assemblySize;
-    private static string[] _dependencyDirs;
-    private static string[] _ignoredDependencies;
 
     private static void Main(string[] args)
     {
     }
 
-    private static void LoadAssembly(string inAssemblyPath, bool initialLoad = false)
+    private static void LoadAssembly(string inAssemblyPath)
     {
         _assemblyPath = inAssemblyPath;
+
         try
         {
-            AppDomain.CurrentDomain.AssemblyResolve -= ResolveExternalAssembly;
-            AppDomain.CurrentDomain.AssemblyResolve += ResolveExternalAssembly;
             _assemblyPath = new FileInfo(_assemblyPath).FullName;
-            _dependencyDirs = new[] { Path.GetDirectoryName(_assemblyPath), Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) };
-            _ignoredDependencies = [];
             var assembly = Assembly.LoadFile(_assemblyPath);
             var isReflectionOnly = false;
             _assemblySize = new FileInfo(assembly.Location).Length;
@@ -210,9 +203,7 @@ internal static class SizerNet
                 catch
                 {
                 }
-#if DOTNET35
-                try { foreach (object ca in type.GetCustomAttributes(false)) lenType += Overhead_CustomAttribute; } catch { }
-#else
+
                 try
                 {
                     foreach (var ad in type.GetCustomAttributesData())
@@ -223,7 +214,7 @@ internal static class SizerNet
                 catch
                 {
                 }
-#endif
+
                 SetNodeTag(nType, lenType);
 
                 foreach (var fi in type.GetFields(statics))
@@ -353,40 +344,6 @@ internal static class SizerNet
         SetNodeTag(nMethod, lenMi);
     }
 
-    private static Assembly ResolveExternalAssembly(object sender, ResolveEventArgs args)
-    {
-        if (Array.IndexOf(_ignoredDependencies, args.Name) >= 0)
-        {
-            return null;
-        }
-
-        var dllFileName = new AssemblyName(args.Name).Name + ".dll";
-        foreach (var dir in _dependencyDirs)
-        {
-            var testAssemblyPath = Path.Combine(dir, dllFileName);
-            if (File.Exists(testAssemblyPath))
-            {
-                return Assembly.LoadFile(testAssemblyPath);
-            }
-        }
-
-        var ofd = new OpenFileDialog();
-        ofd.Title = "Find dependency: " + args.Name;
-        ofd.ValidateNames = ofd.CheckFileExists = ofd.CheckPathExists = true;
-        ofd.FileName = dllFileName;
-        ofd.Filter = ".Net Dependencies (*.dll)|*.dll";
-        if (ofd.ShowDialog() != DialogResult.OK)
-        {
-            Array.Resize(ref _ignoredDependencies, _ignoredDependencies.Length + 1);
-            _ignoredDependencies[_ignoredDependencies.Length - 1] = args.Name;
-            return null;
-        }
-
-        Array.Resize(ref _dependencyDirs, _dependencyDirs.Length + 1);
-        _dependencyDirs[_dependencyDirs.Length - 1] = Path.GetDirectoryName(ofd.FileName);
-        return Assembly.LoadFile(ofd.FileName);
-    }
-
     private static void SetNodeTag(TreeNode n, long amount)
     {
         n.Tag = amount;
@@ -409,29 +366,6 @@ internal static class SizerNet
         Array.Sort(ns, (a, b) => { return unchecked((int)((long)b.Tag - (long)a.Tag)); });
         nc.Clear();
         nc.AddRange(ns);
-    }
-
-    private static void FilterNodeByTag(TreeNodeCollection nc, long threshold)
-    {
-        long totalRemoved = 0;
-        var lastRemoved = -1;
-        for (var i = 0; i != nc.Count; i++)
-        {
-            if ((long)nc[i].Tag < threshold)
-            {
-                totalRemoved += (long)nc[i].Tag;
-                nc[i].Remove();
-                lastRemoved = i--;
-                continue;
-            }
-
-            FilterNodeByTag(nc[i].Nodes, threshold);
-        }
-
-        if (totalRemoved != 0)
-        {
-            nc.Add("... <Filtered> ...").Tag = totalRemoved;
-        }
     }
 
     private static long CalculateSize(bool isReflectionOnly, Type t, object fiOrValue = null)
