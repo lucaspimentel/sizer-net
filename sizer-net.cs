@@ -35,11 +35,6 @@ using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("Sizer.Net")]
-[assembly: AssemblyProduct("sizer-net")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
-[assembly: System.Runtime.InteropServices.ComVisible(false)]
 
 static class SizerNet
 {
